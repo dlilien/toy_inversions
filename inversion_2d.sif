@@ -1,9 +1,9 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!                                       !!
-!! Test for Coulomb friction law         !!
-!!                                       !!
-!! From test ISMIP-HOM B020              !!
-!!                                       !!
+!! Run an inversion to recover the friction coefficient
+!!
+!! Copyright © 2020 David Lilien <dlilien90@gmail.com>
+!!
+!! Distributed under terms of the GNU GPL3.0 license.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 check keywords warn
@@ -67,9 +67,9 @@ Initial Condition 1
 
   Beta = Real $beta
   TrueBeta = Variable Coordinate 1
-    Real Procedure "input_data" "beta"
+    Real Procedure "BCs" "beta"
   VXIN = Variable Coordinate 1
-    Real Procedure "input_data" "vx"
+    Real Procedure "BCs" "vx"
 
   Adjoint 1 = Real 0.0
   Adjoint 2 = Real 0.0

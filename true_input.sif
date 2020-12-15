@@ -1,13 +1,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!                                       !!
-!! Test for Coulomb friction law         !!
-!!                                       !!
-!! From test ISMIP-HOM B020              !!
-!!                                       !!
+!! Do a quick simulation to get input surface velocities
+!!
+!! Copyright © 2020 David Lilien <dlilien90@gmail.com>
+!!
+!! Distributed under terms of the GNU GPL3.0 license.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-check keywords warn
-echo on
 $L = 20.0e3
 $Slope = 0.2 * pi / 180.0
 
@@ -120,6 +118,7 @@ End
 
 
 Boundary Condition 1
+  Name = "Bed"
   Target Boundaries = 1
   Normal-Tangential Velocity = Logical True
 
@@ -143,8 +142,8 @@ Boundary Condition 2
   ComputeNormal = Logical False
 End
 
-! Upper Surface
 Boundary Condition 3
+  Name = "Surface"
   Target Boundaries = 3
   ComputeNormal = Logical False
 

@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 # vim:fenc=utf-8
 #
-# Copyright © 2020 dlilien <dlilien@hozideh>
+# Copyright © 2020 David Lilien <dlilien90@gmail.com>
 #
-# Distributed under terms of the MIT license.
+# Distributed under terms of the GNU GPL3.0 license.
 
 """
-
+Get the results of a forward model for input to inversions.
 """
 
 import matplotlib.pyplot as plt
@@ -52,12 +52,6 @@ def vel():
             fout.write('# {:d}\n'.format(len(uniform_x)))
             for i in range(len(uniform_x)):
                 fout.write('{:f} {:f}\n'.format(uniform_x[i], true_beta[i]))
-
-
-
-if __name__ == '__main__':
-    main()
-
 
 
 if __name__ == '__main__':

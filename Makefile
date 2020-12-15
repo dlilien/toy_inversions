@@ -1,9 +1,9 @@
 #
 # Makefile
-# dlilien, 2020-12-15 18:00
+# David Lilien, 2020-12-15 18:00
 #
 
-all: input_data.so vx.txt
+all: BCs.so vx.txt
 
 clean:
 	rm -f *.so vx.txt true_beta.txt *.png

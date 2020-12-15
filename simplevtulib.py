@@ -2,21 +2,22 @@
 # -*- coding: utf-8 -*-
 # vim:fenc=utf-8
 #
-# Copyright © 2020 dlilien <dlilien@hozideh>
+# Copyright © 2020 David Lilien <dlilien90@gmail.com>
 #
-# Distributed under terms of the MIT license.
+# Distributed under terms of the GNU GPL3.0 license.
 
 """
-
+Wrap vtk for simplicity and so that I can remember how to access needed fields.
 """
 
 import vtk
 from vtk.util.numpy_support import vtk_to_numpy
-from matplotlib.tri import Triangulation, LinearTriInterpolator
 import numpy as np
 
 
 class VTU(object):
+    """Load a VTU object in a way that I find more intuitive"""
+
     def __init__(self, filename=None):
         """Creates a vtu object by reading the specified file."""
         if filename is None:

@@ -1,9 +1,11 @@
-!
-! input_data.f90
-! Copyright (C) 2020 dlilien <dlilien@hozideh>
-!
-! Distributed under terms of the MIT license.
-!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! Read output of forward model, extracted using extract_vx.py
+!!
+!! Copyright © 2020 David Lilien <dlilien90@gmail.com>
+!!
+!! Distributed under terms of the GNU GPL3.0 license.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
         FUNCTION Beta( Model, nodenumber, dumy) RESULT(betav)
             USE DefUtils
