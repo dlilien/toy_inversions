@@ -1,0 +1,316 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!                                       !!
+!! Test for Coulomb friction law         !!
+!!                                       !!
+!! From test ISMIP-HOM B020              !!
+!!                                       !!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+check keywords warn
+echo on
+$L = 20.0e3
+$Slope = 0.2 * pi / 180.0
+
+$yearinsec = 365.25*24*60*60
+$rhoi = 900.0/(1.0e6*yearinsec^2)   
+$rhow = 1000.0/(1.0e6*yearinsec^2)   
+$gravity = -9.81*yearinsec^2
+$n = 3.0
+$eta = (2.0*100.0)^(-1.0/n)
+$beta = 0.02
+$As = beta^(-n)
+$Lambda=1.0e10
+
+Header
+  Mesh DB "." "rectangle"
+End
+
+Constants
+! No constant Needed
+End
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Simulation
+  Coordinate System  = Cartesian 2D 
+  Simulation Type = Steady        
+
+  Steady State Min Iterations = 1
+  Steady State Max Iterations = 1000
+
+  Post File = "inversion.vtu"
+  max output level = 3   
+End
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! The ice 
+Body 1
+  Equation = 1
+  Body Force = 1
+  Material = 1
+  Initial Condition = 1
+End
+
+! The bed
+Body 2
+  Equation = 2
+  Body Force = 1
+  Material = 1
+  Initial Condition = 1
+End
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Initial Condition 1
+  Pressure = Real 0.0 
+  Velocity 1 = Real 0.0 
+  Velocity 2 = Real 0.0 
+
+  Beta = Real $beta
+  TrueBeta = Variable Coordinate 1
+    Real Procedure "input_data" "beta"
+  VXIN = Variable Coordinate 1
+    Real Procedure "input_data" "vx"
+
+  Adjoint 1 = Real 0.0
+  Adjoint 2 = Real 0.0
+  Adjoint 3 = Real 0.0
+End
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Body Force 1
+  Flow BodyForce 1 = Real 0.0                          
+  Flow BodyForce 2 = Real $gravity 
+End
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Solver 1  
+  Equation = "MapCoordinate"
+  Procedure = "StructuredMeshMapper" "StructuredMeshMapper"
+  Active Coordinate = Integer 2
+
+  Mesh Velocity Variable = String "dSdt"
+  Mesh Update Variable = String "dS"
+  Mesh Velocity First Zero = Logical True
+End
+
+Solver 2
+  Equation = "Normal vector"
+  Procedure = "ElmerIceSolvers" "ComputeNormalSolver"
+  Variable = -dofs 2 "Normal Vector"   
+  Optimize Bandwidth = Logical False 
+  ComputeAll = Logical False
+End
+
+Solver 3
+  Equation = "Navier-Stokes"
+  Exported Variable 1 = -dofs 1 "dSdt" 
+  Exported Variable 2 = -dofs 1 "dS" 
+  Exported Variable 3 = -dofs 1 "Effective Pressure"
+  Exported Variable 4 = -dofs 1 "Beta"
+  Exported Variable 5 = -dofs 1 "TrueBeta"
+  Exported Variable 6 = -dofs 1 "VXIN"
+
+! derivative of the cost fn wr to beta
+  Exported Variable 7 = -dofs 1 "DJDBeta"
+! value of the cost function
+  Exported Variable 8 = -global CostValue
+  Exported Variable 8 DOFs = Integer 1
+! Variable used to force the adjoint system/update in CostSolver
+  Exported Variable 9 = Velocityb
+  Exported Variable 9 DOFs = Integer 3
+
+  Stabilization Method = String Bubbles
+  Flow Model = Stokes
+
+  Linear System Solver = Direct         
+  Linear System Direct Method = umfpack
+
+  Nonlinear System Max Iterations = 100
+  Nonlinear System Convergence Tolerance  = 1.0e-5
+  Nonlinear System Newton After Iterations = 5
+  Nonlinear System Newton After Tolerance = 1.0e-02
+  Nonlinear System Relaxation Factor = 1.00
+  Nonlinear System Reset Newton = Logical True
+
+  Steady State Convergence Tolerance = Real 1.0e-8
+  Calculate Loads = Logical True
+End
+
+Solver 4
+  Equation = "Cost"
+  procedure = "ElmerIceSolvers" "CostSolver_Adjoint"
+
+  Cost Variable Name = String "CostValue"  ! Name of Cost Variable
+
+  Optimized Variable Name = String "Beta"  ! Name of Beta for Regularization
+  Lambda = Real  $Lambda                   ! Regularization Coef
+  Cost Filename = File "Cost_inv.txt"   
+  Steady State Convergence Tolerance = Real 1.0e-8
+end
+
+!!!!  Adjoint Solution
+Solver 5
+  Equation = "Adjoint"
+  Variable = Adjoint
+  Variable Dofs = 3
+
+  procedure = "ElmerIceSolvers" "AdjointSolver"
+
+!Name of the flow solution solver
+  Flow Solution Equation Name = string "Navier-Stokes"
+
+  Linear System Solver = Direct
+  Linear System Direct Method = mumps
+  !Linear System Solver = Iterative
+  ! Linear System Iterative Method = GMRES
+  ! Linear System GMRES Restart = 100
+  ! Linear System Preconditioning= ILU0
+  ! Linear System Convergence Tolerance= 1.0e-08
+  ! Linear System Max Iterations = 1000
+  Steady State Convergence Tolerance = Real 1.0e-8
+End
+
+
+!!!!!  Compute Derivative of Cost function / Beta
+Solver 6
+  Equation = "DJDBeta"
+  procedure = "ElmerIceSolvers" "DJDBeta_Adjoint"
+  
+  Flow Solution Name = String "Flow Solution"
+  Adjoint Solution Name = String "Adjoint"
+  Optimized Variable Name = String "Beta"  ! Name of Beta variable
+  Gradient Variable Name = String "DJDBeta"   ! Name of gradient variable
+  PowerFormulation = Logical False
+  Beta2Formulation = Logical True        ! SlipCoef define as Beta^2
+  FreeSlipShelves = Logical False
+
+  Lambda = Real  $Lambda                   ! Regularization Coef
+  Steady State Convergence Tolerance = Real 1.0e-8
+End
+
+!!!!! Optimization procedure 
+Solver 7
+  Equation = "Optimize_m1qn3"
+  procedure = "ElmerIceSolvers" "Optimize_m1qn3Parallel"
+
+  Cost Variable Name = String "CostValue"
+  Optimized Variable Name = String "Beta"
+  Gradient Variable Name = String "DJDBeta"
+  gradient Norm File = String "GradientNormAdjoint_inv.dat"
+
+  !Note: it may be beneficial to set this to True, which scales
+  !the gradient by 1/boundary_weights. With this set to false,
+  !larger elements produce larger gradients.
+  Mesh Independent = Logical True
+
+! M1QN3 Parameters
+  M1QN3 dxmin = Real 1.0e-8
+  M1QN3 epsg = Real  1.e-5
+  M1QN3 niter = Integer 400
+  M1QN3 nsim = Integer 400
+  M1QN3 impres = Integer 5
+  M1QN3 DIS Mode = Logical False
+  M1QN3 df1 = Real 0.5
+  M1QN3 normtype = String "dfn"
+  M1QN3 OutputFile = File  "M1QN3_inv.out"
+  M1QN3 ndz = Integer 20
+
+  Steady State Convergence Tolerance = Real 1.0e-8
+End
+
+Solver 8
+  Equation = "ExportVertically"
+  Procedure = File "ElmerIceSolvers" "ExportVertically"
+  Variable = String "ExportedBetaS"
+  Variable DOFs = 1
+  Linear System Solver = Iterative
+  Linear System Iterative Method = BiCGStab
+  Linear System Max Iterations  = 1000
+  Linear System Preconditioning = ILU1
+  Linear System Convergence Tolerance = 1.0e-06
+End
+
+Equation 1
+  Active Solvers (6)= 1 2 3 4 5 8
+  NS Convect= False
+End
+
+Equation 2
+ Active Solvers (2)=  6 7 
+End
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Material 1
+  Density = Real $rhoi 
+  Viscosity Model = String "power law"
+  Viscosity = Real $eta                       
+  Viscosity Exponent = Real $1.0/n                
+  Critical Shear Rate = Real 1.0e-10
+
+  Cauchy = Logical True
+End
+
+
+Boundary Condition 1
+  Name = bed
+  Target Boundaries = 1
+  Normal-Tangential Velocity = Logical True
+  Body ID = Integer 2
+
+  Velocity 1 = Real 0.0
+
+  Slip Coefficient 2 =  Variable Beta
+    Real MATC "tx * tx"
+  Bottom Surface = Variable Coordinate 1
+    Real MATC "-tx*sin(Slope) - 1000.0"
+
+  Normal-Tangential Adjoint = Logical True  
+
+  Adjoint Force BC = Logical True
+  Adjoint 1 = Real 0.0e0
+  ExportedBetaS = Variable Beta
+    Real MATC "tx * tx"
+End
+
+! Periodic Right
+Boundary Condition 2
+  Target Boundaries = 2
+  Periodic BC = 4 
+  Periodic BC Translate(2) = Real $L 0.0  
+  Periodic BC Velocity 1  = Logical True
+  Periodic BC Velocity 2  = Logical True
+  Periodic BC Pressure  = Logical True
+  
+  ComputeNormal = Logical False
+  ! Adjoint 1 = Real 0.0
+  ! Adjoint 2 = Real 0.0
+End
+
+! Upper Surface
+Boundary Condition 3
+  Name = "Surface"
+  Target Boundaries = 3
+  ComputeNormal = Logical False
+
+  Top Surface = Variable Coordinate 1
+    Real MATC "-tx*sin(Slope)"
+
+  ! Definition of the Cost function
+  Adjoint Cost = Variable Velocity 1, VXIN
+    Real MATC "0.5*((tx(0)-tx(1))*(tx(0)-tx(1)))"
+
+  !  derivative of the cost function wr u and v
+  Adjoint Cost der 1 = Variable Velocity 1 , VXIN
+    Real MATC "tx(0)-tx(1)"
+  Adjoint Cost der 2 = Real 0.0
+End
+
+! Periodic Left
+Boundary Condition 4
+  Target Boundaries = 4
+  ComputeNormal = Logical False
+  ! Adjoint 1 = Real 0.0
+  ! Adjoint 2 = Real 0.0
+End
