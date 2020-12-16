@@ -11,5 +11,5 @@ for lambda in 1.0e0 1.0e6 1.0e8 1.0e10 1.0e12 1.0e14 1.0e16 1.0e18 1.0e20; do
     ./prepare_template.py $lambda
     rm -f rectangle/inversion_l${lambda}_t????.vtu
     echo Running inversion_${lambda}.sif...
-    ElmerSolver inversion_${lambda}.sif > inversion_${lambda}.log
+    ElmerSolver inversion_${lambda}.sif > logs/inversion_${lambda}.log
 done
