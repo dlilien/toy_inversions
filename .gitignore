@@ -1,6 +1,11 @@
+*.so
 *.png
 *.vtu
 *.txt
 *.result
 rectangle
 *.un~
+inversion_1*.sif
+*.log
+inversion_outputs
+__pycache__

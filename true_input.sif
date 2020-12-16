@@ -6,7 +6,7 @@
 !! Distributed under terms of the GNU GPL3.0 license.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-$L = 20.0e3
+$L = 40.0e3
 $Slope = 0.2 * pi / 180.0
 
 $yearinsec = 365.25*24*60*60
@@ -17,6 +17,22 @@ $n = 3.0
 $eta = (2.0*100.0)^(-1.0/n)
 $beta = 0.02
 $As = beta^(-n)
+
+$ function glen(Th) {\
+   EF = 1.0;\
+   AF = getArrheniusFactor(Th);\
+   _glen = (2.0*EF*AF)^(-1.0/3.0);\
+}
+
+!! Arrhenius factor needed by glen
+!! (in SI units)
+!---------------------------------
+$ function getArrheniusFactor(Th){ \
+    if (Th<-10) {_getArrheniusFactor=3.985E-13 * exp( -60.0E03/(8.314 * (273.15 + Th)));}\
+    else {\
+       if (Th>0) _getArrheniusFactor=1.916E03 * exp( -139.0E03/(8.314 *  (273.15)));\
+            else _getArrheniusFactor=1.916E03 * exp( -139.0E03/(8.314 *  (273.15 + Th)));}\
+}
 
 Header
   Mesh DB "." "rectangle"
@@ -54,7 +70,9 @@ Initial Condition 1
   Velocity 2 = Real 0.0 
 
   Beta = Variable Coordinate 1
-    Real MATC "if (abs(tx - 10000) < 1000) 2.0 * beta; else beta / 2.0"
+    Real MATC "if (abs(tx - 10000) < 3000) 2.0 * beta; else if (abs(tx - 30000) < 2000) 3.0 * beta; else beta / 2.0"
+
+  Temperature = Real -10.0
 End
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -88,6 +106,7 @@ Solver 3
   Exported Variable 2 = -dofs 1 "dS" 
   Exported Variable 3 = -dofs 1 "Effective Pressure"
   Exported Variable 4 = -dofs 1 "Beta"
+  Exported Variable 5 = -dofs 1 "Temperature"
   
   Stabilization Method = String Bubbles
   Flow Model = Stokes
@@ -108,12 +127,20 @@ End
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 Material 1
   Density = Real $rhoi 
-  Viscosity Model = String "power law"
-  Viscosity = Real $eta                       
-  Viscosity Exponent = Real $1.0/n                
-  Critical Shear Rate = Real 1.0e-10
-
   Cauchy = Logical True
+  Viscosity = Variable Temperature
+      Real MATC "glen(tx)"
+  Critical Shear Rate = 1.0E-09
+
+  !! call in scaled units (m-MPa-years)
+  Viscosity = Variable Temperature
+         Real MATC "glen(tx)*31556926.0^(-1.0/3.0)*1.0E-06"
+  Critical Shear Rate = $1.0E-09 * 31556926.0
+
+  !! this holds for both unit systems
+  Viscosity Model = String "power law"
+  Viscosity Exponent = $1.0/3.0
+  Temperature = Real -10.0
 End
 
 

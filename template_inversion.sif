@@ -8,18 +8,36 @@
 
 check keywords warn
 echo on
-$L = 20.0e3
+$L = 40.0e3
 $Slope = 0.2 * pi / 180.0
 
 $yearinsec = 365.25*24*60*60
 $rhoi = 900.0/(1.0e6*yearinsec^2)   
 $rhow = 1000.0/(1.0e6*yearinsec^2)   
 $gravity = -9.81*yearinsec^2
+$A1 = 2.89165e-13*yearinsec*1.0e18 
+$A2 = 2.42736e-02*yearinsec*1.0e18 
 $n = 3.0
 $eta = (2.0*100.0)^(-1.0/n)
-$beta = 0.02
-$As = beta^(-n)
-$Lambda=1.0e10
+$beta = 0.01
+$Lambda={LAMBDA}
+!! Glen's flow law (using power law)
+!-----------------
+$ function glen(Th) {\
+   EF = 1.0;\
+   AF = getArrheniusFactor(Th);\
+   _glen = (2.0*EF*AF)^(-1.0/3.0);\
+}
+
+!! Arrhenius factor needed by glen
+!! (in SI units)
+!---------------------------------
+$ function getArrheniusFactor(Th){ \
+    if (Th<-10) {_getArrheniusFactor=3.985E-13 * exp( -60.0E03/(8.314 * (273.15 + Th)));}\
+    else {\
+       if (Th>0) _getArrheniusFactor=1.916E03 * exp( -139.0E03/(8.314 *  (273.15)));\
+            else _getArrheniusFactor=1.916E03 * exp( -139.0E03/(8.314 *  (273.15 + Th)));}\
+}
 
 Header
   Mesh DB "." "rectangle"
@@ -37,8 +55,9 @@ Simulation
   Steady State Min Iterations = 1
   Steady State Max Iterations = 1000
 
-  Post File = "inversion.vtu"
-  max output level = 3   
+  Post File = "inversion_l{LAMBDA}.vtu"
+  max output level = 3
+  Output intervals = 10 
 End
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -74,6 +93,8 @@ Initial Condition 1
   Adjoint 1 = Real 0.0
   Adjoint 2 = Real 0.0
   Adjoint 3 = Real 0.0
+
+  Temperature = Real -10.0
 End
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -118,6 +139,7 @@ Solver 3
 ! Variable used to force the adjoint system/update in CostSolver
   Exported Variable 9 = Velocityb
   Exported Variable 9 DOFs = Integer 3
+  Exported Variable 10 = -dofs 1 "Temperature"
 
   Stabilization Method = String Bubbles
   Flow Model = Stokes
@@ -144,7 +166,7 @@ Solver 4
 
   Optimized Variable Name = String "Beta"  ! Name of Beta for Regularization
   Lambda = Real  $Lambda                   ! Regularization Coef
-  Cost Filename = File "Cost_inv.txt"   
+  Cost Filename = File "inversion_outputs/Cost_inv_{LAMBDA}.txt"   
   Steady State Convergence Tolerance = Real 1.0e-8
 end
 
@@ -196,7 +218,7 @@ Solver 7
   Cost Variable Name = String "CostValue"
   Optimized Variable Name = String "Beta"
   Gradient Variable Name = String "DJDBeta"
-  gradient Norm File = String "GradientNormAdjoint_inv.dat"
+  gradient Norm File = String "inversion_outputs/GradientNormAdjoint_inv_{LAMBDA}.dat"
 
   !Note: it may be beneficial to set this to True, which scales
   !the gradient by 1/boundary_weights. With this set to false,
@@ -212,7 +234,7 @@ Solver 7
   M1QN3 DIS Mode = Logical False
   M1QN3 df1 = Real 0.5
   M1QN3 normtype = String "dfn"
-  M1QN3 OutputFile = File  "M1QN3_inv.out"
+  M1QN3 OutputFile = File  "inversion_outputs/M1QN3_inv_{LAMBDA}.out"
   M1QN3 ndz = Integer 20
 
   Steady State Convergence Tolerance = Real 1.0e-8
@@ -244,12 +266,22 @@ End
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 Material 1
   Density = Real $rhoi 
-  Viscosity Model = String "power law"
-  Viscosity = Real $eta                       
-  Viscosity Exponent = Real $1.0/n                
-  Critical Shear Rate = Real 1.0e-10
 
   Cauchy = Logical True
+
+  Viscosity = Variable Temperature
+      Real MATC "glen(tx)"
+  Critical Shear Rate = 1.0E-09
+
+  !! call in scaled units (m-MPa-years)
+  Viscosity = Variable Temperature
+         Real MATC "glen(tx)*31556926.0^(-1.0/3.0)*1.0E-06"
+  Critical Shear Rate = $1.0E-09 * 31556926.0
+
+  !! this holds for both unit systems
+  Viscosity Model = String "power law"
+  Viscosity Exponent = $1.0/3.0
+  Temperature = Real -10.0
 End
 
 
@@ -284,8 +316,8 @@ Boundary Condition 2
   Periodic BC Pressure  = Logical True
   
   ComputeNormal = Logical False
-  ! Adjoint 1 = Real 0.0
-  ! Adjoint 2 = Real 0.0
+  Adjoint 1 = Real 0.0
+  Adjoint 2 = Real 0.0
 End
 
 ! Upper Surface
@@ -311,6 +343,6 @@ End
 Boundary Condition 4
   Target Boundaries = 4
   ComputeNormal = Logical False
-  ! Adjoint 1 = Real 0.0
-  ! Adjoint 2 = Real 0.0
+  Adjoint 1 = Real 0.0
+  Adjoint 2 = Real 0.0
 End
